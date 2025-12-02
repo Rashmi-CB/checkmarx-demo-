@@ -1,21 +1,52 @@
 name: Checkmarx One Scan
+
 on:
   push:
     branches:
       - main
       - master
       - dev
+  pull_request:
+    branches:
+      - main
+      - master
+      - dev
+
+permissions:
+  contents: read
+  security-events: write   # Required to upload SARIF results
+
 jobs:
-  build:
+  checkmarx-one-scan:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-      - name: Checkmarx One CLI Action
-        uses: checkmarx/ast-github-action@main #Github Action version
+
+      - name: Run Checkmarx One SAST Scan
+        id: cxscan
+        uses: checkmarx/ast-github-action@main
         with:
-          project_name: <Name of Checkmarx One Project>
-          cx_tenant: <Checkmarx One Tenant Account>
-          base_uri: <Checkmarx One Base uri> 
+          project_name: "checkmarx-demo"
+          cx_tenant: "ama-partners"
+          base_uri: "https://ind.ast.checkmarx.net"
           cx_client_id: ${{ secrets.CX_CLIENT_ID }}
           cx_client_secret: ${{ secrets.CX_CLIENT_SECRET }}
+
+          # Additional CLI parameters
+          additional_params: >
+            --branch ${{ github.ref_name }}
+            --report-format sarif
+            --output-path ./cx_reports
+            --report-name cx_results.sarif
+            # Uncomment below line to FAIL pipeline on High severity
+            # --fail-on high
+
+      - name: Validate SARIF file exists
+        run: ls -R ./cx_reports
+
+      - name: Upload SARIF to GitHub Code Scanning
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: ./cx_reports/cx_results.sarif
