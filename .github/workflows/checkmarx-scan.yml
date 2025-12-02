@@ -24,7 +24,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
-            - name: Run Checkmarx One SAST Scan
+      - name: Run Checkmarx One SAST Scan
         id: cxscan
         uses: checkmarx/ast-github-action@main
         with:
