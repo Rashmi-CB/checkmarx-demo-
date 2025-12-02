@@ -24,7 +24,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
-      - name: Run Checkmarx One SAST Scan
+            - name: Run Checkmarx One SAST Scan
         id: cxscan
         uses: checkmarx/ast-github-action@main
         with:
@@ -34,19 +34,26 @@ jobs:
           cx_client_id: ${{ secrets.CX_CLIENT_ID }}
           cx_client_secret: ${{ secrets.CX_CLIENT_SECRET }}
 
-          # Additional CLI parameters
-          additional_params: >
+          # CLI parameters (use SCAN_PARAMS; ADDITIONAL_PARAMS is deprecated)
+          scan_params: >
             --branch ${{ github.ref_name }}
             --report-format sarif
             --output-path ./cx_reports
-            --report-name cx_results.sarif
             # Uncomment below line to FAIL pipeline on High severity
             # --fail-on high
 
-      - name: Validate SARIF file exists
-        run: ls -R ./cx_reports
+      - name: Find SARIF report
+        id: find_sarif
+        run: |
+          mkdir -p ./cx_reports
+          REPORT=$(ls ./cx_reports/*.sarif 2>/dev/null | head -n1 || true)
+          if [ -z "$REPORT" ]; then
+            echo "No SARIF report found in ./cx_reports"
+            exit 1
+          fi
+          echo "report=$REPORT" >> $GITHUB_OUTPUT
 
       - name: Upload SARIF to GitHub Code Scanning
         uses: github/codeql-action/upload-sarif@v3
         with:
-          sarif_file: ./cx_reports/cx_results.sarif
+          sarif_file: ${{ steps.find_sarif.outputs.report }}
